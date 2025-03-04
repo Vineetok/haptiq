@@ -1,0 +1,25 @@
+<table class="table table-bordered">
+    <thead class="thead-dark">
+      <tr>
+        <th>Username</th>
+        <th>Role</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in sub_users %}
+      <tr>
+        <td>{{ user.username }}</td>
+        <td>{{ user.role }}</td>
+        <td>
+          <form action="{{ url_for('remove_sub_user') }}" method="post" style="display:inline;">
+            <input type="hidden" name="username" value="{{ user.username }}">
+            <input type="hidden" name="category" value="{{ session['category'] }}">
+            <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  

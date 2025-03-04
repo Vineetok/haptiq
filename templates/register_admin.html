@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Category Admin Registration</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Google Font -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .registration-container {
+      background-color: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      padding: 40px 50px;
+      max-width: 500px;
+      width: 100%;
+      animation: popIn 0.6s ease-out;
+      position: relative;
+      overflow: hidden;
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .registration-container::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(52,152,219,0.15) 10%, transparent 40%);
+      transform: rotate(25deg);
+    }
+    .registration-container * {
+      position: relative;
+      z-index: 2;
+    }
+    h2 {
+      color: #2c3e50;
+      margin-bottom: 30px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 2rem;
+    }
+    .form-group label {
+      font-weight: 600;
+      color: #34495e;
+    }
+    .form-control {
+      border-radius: 6px;
+      border: 1px solid #ced4da;
+      transition: all 0.3s ease;
+      background: #f8f9fa;
+    }
+    .form-control:focus {
+      border-color: #3498db;
+      box-shadow: 0 0 8px rgba(52, 152, 219, 0.2);
+      background: #fff;
+    }
+    .btn-primary {
+      background-color: #3498db;
+      border: none;
+      width: 100%;
+      padding: 12px;
+      font-size: 1.1rem;
+      border-radius: 6px;
+      transition: background-color 0.3s ease;
+      font-weight: 600;
+    }
+    .btn-primary:hover {
+      background-color: #2980b9;
+    }
+    .register-links {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .register-links a {
+      color: #3498db;
+      text-decoration: none;
+      transition: color 0.3s ease;
+      font-weight: 600;
+    }
+    .register-links a:hover {
+      color: #2980b9;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="registration-container">
+    <h2>Category Admin Registration</h2>
+    <form method="POST" action="{{ url_for('register_admin') }}">
+      <div class="form-group">
+        <label for="username">Username:</label>
+        <input type="text" class="form-control" name="username" id="username" required>
+      </div>
+      <div class="form-group">
+        <label for="password">Password:</label>
+        <input type="password" class="form-control" name="password" id="password" required>
+      </div>
+      <div class="form-group">
+        <label for="category">Select Existing Category:</label>
+        <select class="form-control" name="category" id="category">
+          <option value="">-- Select Category --</option>
+          {% for category in categories %}
+            <option value="{{ category.name }}">{{ category.name|capitalize }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="new_category">Or Enter New Category:</label>
+        <input type="text" class="form-control" name="new_category" id="new_category" placeholder="New Category">
+      </div>
+      <button type="submit" class="btn btn-primary">Register as Category Admin</button>
+    </form>
+    <p class="register-links mt-3">Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
+  </div>
+</body>
+</html>

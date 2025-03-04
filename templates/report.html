@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Detection Reports</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      margin-top: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    h2 {
+      color: #333;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    .card {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+      background-color: #ffffff;
+      max-width: 350px;
+      margin: 0 auto 20px auto;
+      overflow: hidden;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+    }
+
+    .card-header {
+      background-color: #0275d8;
+      color: #fff;
+      border-top-left-radius: 12px;
+      border-top-right-radius: 12px;
+      padding: 0.8rem 1.25rem;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .report-image {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      padding: 5px;
+      display: block;
+      margin: 0 auto;
+      transition: opacity 0.3s;
+    }
+
+    .report-image:hover {
+      opacity: 0.8;
+    }
+
+    .filter-form {
+      background: #ffffff;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2rem;
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .btn-primary {
+      background-color: #0275d8;
+      border: none;
+      font-weight: bold;
+      transition: background 0.3s, transform 0.2s;
+    }
+
+    .btn-primary:hover {
+      background-color: #025aa5;
+      transform: scale(1.05);
+    }
+
+    .btn-secondary {
+      background-color: #6c757d;
+      border: none;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+
+    .btn-secondary:hover {
+      background-color: #565e64;
+    }
+
+    .download-btn {
+      font-size: 1.25rem;
+      color: #ffffff;
+      transition: transform 0.2s;
+    }
+
+    .download-btn:hover {
+      transform: scale(1.2);
+    }
+
+    .text-shadow {
+      text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .alert {
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .col-md-4 {
+        flex: 0 0 100%;
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2 class="text-shadow">Detection Reports</h2>
+    
+    <div class="d-flex justify-content-end mb-3">
+      <a href="{{ url_for('category_dashboard') }}" class="btn btn-secondary">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </a>
+    </div>
+
+    <!-- Filter Form -->
+    <form method="GET" action="{{ url_for('report') }}" class="filter-form mb-4">
+      <div class="row g-2 align-items-center">
+        <div class="col-auto">
+          <label for="category" class="col-form-label">Filter by Category:</label>
+        </div>
+        <div class="col-auto">
+          <select name="category" id="category" class="form-select">
+            <option value="all" {% if selected_category == 'all' %}selected{% endif %}>All Categories</option>
+            {% for cat in categories %}
+              <option value="{{ cat.name }}" {% if selected_category == cat.name %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-filter"></i> Filter
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Report Cards -->
+    <div class="row justify-content-center">
+      {% for report in reports %}
+      <div class="col-md-4">
+        <div class="card mb-3">
+          <div class="card-header">
+            <span class="small">Report: {{ report.report_name }}</span>
+            <a href="{{ url_for('export_pdf', report_id=report._id) }}" class="btn btn-link download-btn" title="Download PDF">
+              <i class="fas fa-download"></i>
+            </a>
+          </div>
+          <div class="card-body p-3">
+            <p class="card-text small">
+              <strong>Category:</strong> {{ report.category }}<br>
+              <strong>Detected:</strong> {{ report.generated_at.strftime('%Y-%m-%d %H:%M:%S') }}
+            </p>
+            {% if report.matches %}
+            <div class="match-details">
+              <h6 class="small">Detection Details:</h6>
+              {% for match in report.matches %}
+              <div class="mb-2">
+                <p class="small">
+                  <strong>Matched:</strong> {{ match.Celebrity.split('/')[1] }}<br>
+                  <strong>Confidence:</strong> {{ match.Confidence }}%
+                </p>
+                {% if match.image_url %}
+                <img src="{{ match.image_url }}" class="report-image" alt="Detection snapshot"
+                     onerror="this.style.display='none'; this.parentElement.innerHTML='<small class=\'text-danger\'>Image failed to load</small>'">
+                {% else %}
+                <div class="alert alert-warning p-1">No image available</div>
+                {% endif %}
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+      {% if reports|length == 0 %}
+        <div class="alert alert-info">No reports found</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

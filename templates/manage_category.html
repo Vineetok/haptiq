@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Categories</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    body {
+      background-color: #f4f6f9;
+      color: #333;
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .wrapper {
+      display: flex;
+      min-height: 100vh;
+    }
+    .sidebar {
+      width: 250px;
+      background-color: #343a40;
+      padding: 20px;
+      overflow-y: auto;
+      color: #fff;
+    }
+    .sidebar h3 {
+      color: #fff;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+    .sidebar a {
+      display: block;
+      color: #fff;
+      text-decoration: none;
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+    .sidebar a:hover {
+      background-color: #495057;
+    }
+    .sidebar .back-btn {
+      margin-top: 20px;
+    }
+    .content {
+      flex: 1;
+      padding: 30px;
+    }
+    h2 {
+      color: #1a237e;
+      font-weight: 600;
+    }
+    hr {
+      margin: 30px 0;
+    }
+    .form-group label {
+      font-weight: 600;
+    }
+    .btn-primary {
+      background-color: #1e88e5;
+      border-color: #1e88e5;
+      transition: 0.3s;
+    }
+    .btn-primary:hover {
+      background-color: #1565c0;
+      border-color: #1565c0;
+    }
+    .btn-danger {
+      background-color: #e53935;
+      border-color: #e53935;
+    }
+    .btn-danger:hover {
+      background-color: #c62828;
+      border-color: #c62828;
+    }
+    .list-group-item {
+      background-color: #fafafa;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <h3>Manage Categories</h3>
+      <a onclick="showSection('add')">Add Category</a>
+      <a onclick="showSection('remove')">Existing Categories</a>
+      <!-- Back to Dashboard Button in Sidebar using history.back() -->
+      <a href="javascript:history.back()" class="btn btn-secondary btn-block back-btn">Back to Dashboard</a>
+    </div>
+    <!-- Main Content -->
+    <div class="content">
+      <!-- Add Category Section -->
+      <div id="addCategorySection">
+        <h2>Add Category</h2>
+        <form method="POST" action="{{ url_for('add_category') }}">
+          <div class="form-group">
+            <label for="category_name">Add Category:</label>
+            <input type="text" class="form-control" name="category_name" id="category_name" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Add Category</button>
+        </form>
+      </div>
+      <!-- Existing Categories Section (Hidden by Default) -->
+      <div id="removeCategorySection" style="display: none;">
+        <h2>Existing Categories</h2>
+        <ul class="list-group">
+          {% for category in categories %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>{{ category.name|capitalize }}</span>
+            <form method="POST" action="{{ url_for('delete_category') }}" style="display:inline;">
+              <input type="hidden" name="delete_category_name" value="{{ category.name }}">
+              <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+            </form>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showSection(section) {
+      if (section === 'add') {
+        document.getElementById('addCategorySection').style.display = 'block';
+        document.getElementById('removeCategorySection').style.display = 'none';
+      } else if (section === 'remove') {
+        document.getElementById('addCategorySection').style.display = 'none';
+        document.getElementById('removeCategorySection').style.display = 'block';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Superadmin Dashboard</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Google Font: Poppins -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+      color: #333;
+    }
+    .wrapper {
+      display: flex;
+      min-height: 100vh;
+      width: 100%;
+    }
+    /* Sidebar styling */
+    .sidebar {
+      width: 240px;
+      background-color: #2c3e50;
+      padding: 30px;
+      box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+      border-top-right-radius: 12px;
+      border-bottom-right-radius: 12px;
+    }
+    .sidebar h4 {
+      color: #ecf0f1;
+      margin-bottom: 20px;
+      text-align: center;
+      font-weight: 600;
+    }
+    .sidebar a {
+      color: #ecf0f1;
+      text-decoration: none;
+      display: block;
+      padding: 10px 15px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      transition: background 0.3s;
+    }
+    .sidebar a:hover {
+      background-color: #34495e;
+    }
+    .logout-btn {
+      margin-top: 20px;
+    }
+    /* Content area styling */
+    .content {
+      flex: 1;
+      padding: 30px;
+      background-color: #fff;
+      border-top-left-radius: 12px;
+      border-bottom-left-radius: 12px;
+      margin: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      animation: fadeIn 0.6s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    h2, h3, h4 {
+      color: #2c3e50;
+    }
+    /* Nav-tabs styling */
+    .nav-tabs .nav-link {
+      color: #2c3e50;
+      font-weight: 600;
+      border: none;
+      transition: background-color 0.3s;
+    }
+    .nav-tabs .nav-link.active {
+      background-color: #3498db !important;
+      color: #fff !important;
+      border-radius: 6px 6px 0 0;
+    }
+    .tab-content {
+      margin-top: 20px;
+    }
+    /* Table styling */
+    .table thead th {
+      background-color: #3498db;
+      color: #fff;
+    }
+    .table-striped tbody tr:nth-of-type(odd) {
+      background-color: rgba(52, 152, 219, 0.1);
+    }
+    /* Button styling in tables */
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <h4>Dashboard</h4>
+      <a href="{{ url_for('approve_requests') }}">Dashboard</a>
+      <a href="{{ url_for('manage_category') }}">Manage Categories</a>
+      <form action="{{ url_for('logout') }}" method="GET" class="mt-4">
+        <button type="submit" class="btn btn-danger btn-block">Logout</button>
+      </form>
+    </div>
+    <!-- Main Content -->
+    <div class="content">
+      <h2>Superadmin Dashboard</h2>
+      <ul class="nav nav-tabs" id="superadminTab" role="tablist">
+        <li class="nav-item">
+          <a class="nav-link active" id="pending-tab" data-toggle="tab" href="#pending" role="tab" aria-controls="pending" aria-selected="true">
+            Pending Requests
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" id="admins-tab" data-toggle="tab" href="#admins" role="tab" aria-controls="admins" aria-selected="false">
+            Category Admins
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" id="subUsers-tab" data-toggle="tab" href="#subUsers" role="tab" aria-controls="subUsers" aria-selected="false">
+            Sub Users
+          </a>
+        </li>
+      </ul>
+      <div class="tab-content" id="superadminTabContent">
+        <!-- Pending Registration Requests Section -->
+        <div class="tab-pane fade show active" id="pending" role="tabpanel" aria-labelledby="pending-tab">
+          <h3 class="mt-3">Pending Registration Requests</h3>
+          {% if requests %}
+            <div class="table-responsive">
+              <table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Categories</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for req in requests %}
+                  <tr>
+                    <td>{{ req.username }}</td>
+                    <td>{{ req.role }}</td>
+                    <td>
+                      {% if req.categories %}
+                        {{ req.categories|join(', ') }}
+                      {% else %}
+                        {{ req.category }}
+                      {% endif %}
+                    </td>
+                    <td>
+                      <form action="{{ url_for('approve', request_id=req._id) }}" method="post" style="display:inline;">
+                        <button type="submit" class="btn btn-success btn-sm">Approve</button>
+                      </form>
+                      <form action="{{ url_for('reject', request_id=req._id) }}" method="post" style="display:inline;">
+                        <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+                      </form>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="text-muted">No pending requests.</p>
+          {% endif %}
+        </div>
+        <!-- Category Admins Section -->
+        <div class="tab-pane fade" id="admins" role="tabpanel" aria-labelledby="admins-tab">
+          <h3 class="mt-3">Category Admins</h3>
+          {% if category_admins %}
+            <div class="table-responsive">
+              <table class="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Category</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for admin in category_admins %}
+                  <tr>
+                    <td>{{ admin.username }}</td>
+                    <td>{{ admin.category }}</td>
+                    <td>
+                      <form action="{{ url_for('remove_category_admin') }}" method="post" style="display:inline;">
+                        <input type="hidden" name="category" value="{{ admin.category }}">
+                        <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                      </form>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="text-muted">No category admins found.</p>
+          {% endif %}
+        </div>
+        <!-- Sub Users Section -->
+        <div class="tab-pane fade" id="subUsers" role="tabpanel" aria-labelledby="subUsers-tab">
+          <h3 class="mt-3">Sub Users Under Category Admins</h3>
+          {% if category_users %}
+            {% for cat, sub_users in category_users.items() %}
+              <h4>{{ cat }}</h4>
+              {% if sub_users %}
+                <div class="table-responsive">
+                  <table class="table table-bordered">
+                    <thead>
+                      <tr>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for user in sub_users %}
+                      <tr>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.role }}</td>
+                        <td>
+                          <form action="{{ url_for('remove_sub_user') }}" method="post" style="display:inline;">
+                            <input type="hidden" name="username" value="{{ user.username }}">
+                            <input type="hidden" name="category" value="{{ cat }}">
+                            <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                          </form>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <p class="text-muted">No sub users for category: {{ cat }}</p>
+              {% endif %}
+            {% endfor %}
+          {% else %}
+            <p class="text-muted">No sub users found.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Scripts -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
