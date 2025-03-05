@@ -8,6 +8,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from io import BytesIO
+from reportlab.platypus import PageBreak 
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
@@ -372,23 +373,39 @@ def report():
     if not user:
         return redirect(url_for('login'))
 
+    # Get category and search query from GET parameters.
+    selected_category = request.args.get('category', 'all')
+    search_query = request.args.get('search', '')
+
+    # Determine available categories.
+    available_categories = session.get('categories')
+    if not available_categories or available_categories == ['']:
+        available_categories = [cat['name'] for cat in categories_collection.find()]
+
+    # Build query based on category and search text.
+    query = {}
+    if selected_category != 'all':
+        query["category"] = selected_category
+    if search_query:
+        query["report_name"] = {'$regex': search_query, '$options': 'i'}
+
     reports = []
     try:
-        raw_reports = reports_collection.find().sort('generated_at', -1)
-
+        raw_reports = reports_collection.find(query).sort('generated_at', -1)
         for report in raw_reports:
             if 'matches' in report:
                 for match in report['matches']:
                     if 'Image' in match:
-                        # Convert to string explicitly
                         file_id_str = str(match['Image'])
                         match['image_url'] = url_for('get_image', file_id=file_id_str)
             reports.append(report)
-
     except Exception as e:
         flash(f"Error loading reports: {str(e)}")
 
-    return render_template('report.html', reports=reports)
+    return render_template('report.html',
+                           reports=reports,
+                           selected_category=selected_category,
+                           available_categories=available_categories)
 
 
 @app.route('/get_image/<file_id>')
@@ -504,6 +521,92 @@ def search_sub_users():
         'username': {'$regex': search_query, '$options': 'i'}
     }))
     return render_template('sub_users_table.html', sub_users=sub_users)
+
+@app.route('/export_multi_pdf_combined', methods=['POST'])
+def export_multi_pdf_combined():
+    try:
+        # Check which download type is requested: "selected" or "all"
+        download_type = request.form.get('downloadType', 'selected')
+        if download_type == 'all':
+            # Retrieve all reports (sorted by date descending)
+            raw_reports = reports_collection.find().sort('generated_at', -1)
+            # Build report_ids list from all reports
+            report_ids = [str(report['_id']) for report in raw_reports]
+        else:
+            # Get the list of selected report IDs from the form
+            report_ids = request.form.getlist('report_ids')
+        
+        if not report_ids:
+            flash("No reports selected for download.")
+            return redirect(url_for('report'))
+        
+        # Create a PDF document in memory
+        pdf_buffer = BytesIO()
+        doc = SimpleDocTemplate(pdf_buffer, pagesize=letter)
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'Title',
+            parent=styles['Heading1'],
+            fontSize=18,
+            spaceAfter=12,
+            alignment=1  # center aligned
+        )
+        elements = []
+        
+        # Loop through each report and add its content to the PDF
+        for idx, report_id in enumerate(report_ids):
+            report = reports_collection.find_one({'_id': ObjectId(report_id)})
+            if not report:
+                continue  # Skip if report not found
+
+            # Report Title
+            elements.append(Paragraph("Face Recognition Report", title_style))
+            
+            # Report Details
+            details = [
+                ['Category:', report['category']],
+                ['Date:', report['generated_at'].strftime('%Y-%m-%d %H:%M:%S')],
+                ['Confidence:', report['matches'][0]['Confidence']]
+            ]
+            table = Table(details, colWidths=[100, 400])
+            table.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 12),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ]))
+            elements.append(table)
+            elements.append(Spacer(1, 24))
+            
+            # Add Detection Snapshot if available
+            if 'matches' in report and report['matches'] and 'Image' in report['matches'][0]:
+                try:
+                    image_file = fs.get(report['matches'][0]['Image'])
+                    img = Image(BytesIO(image_file.read()), width=400, height=300)
+                    elements.append(Paragraph("Detection Snapshot:", styles['Heading2']))
+                    elements.append(img)
+                except Exception as e:
+                    print(f"Error loading image: {e}")
+            
+            # Add a page break if there are more reports
+            if idx < len(report_ids) - 1:
+                elements.append(PageBreak())
+        
+        # Build the combined PDF
+        doc.build(elements)
+        pdf_buffer.seek(0)
+        
+        return send_file(
+            pdf_buffer,
+            as_attachment=True,
+            download_name="Combined_Reports.pdf",
+            mimetype="application/pdf"
+        )
+    except Exception as e:
+        print(f"Error generating combined PDF: {e}")
+        flash("Error generating combined PDF")
+        return redirect(url_for('report'))
 
 
 if __name__ == '__main__':
