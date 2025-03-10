@@ -143,9 +143,12 @@
   <div class="wrapper">
     <!-- Sidebar -->
     <div class="sidebar">
-      <h3>Category Dashboard</h3>
+      <div class="sidebar-header text-center">
+        <img src="{{ url_for('static', filename='logo.jpeg') }}" alt="Logo" style="width: 150px; height: auto;">
+    </div>
+    
       <a onclick="showSection('upload')">Upload Images</a>
-      <a onclick="showSection('pending')">Pending Registration Requests</a>
+      <a onclick="showSection('pending')">Requests</a>
       <a onclick="showSection('subUsers')">My Sub Users</a>
       <!-- Logout Button -->
       <a href="{{ url_for('logout') }}" class="btn btn-secondary btn-block logout-btn">Logout</a>

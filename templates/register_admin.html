@@ -2,11 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Category Admin Registration</title>
   <!-- Bootstrap CSS -->
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
   <!-- Google Font -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap">
+  <!-- Bootstrap Select (if needed for any advanced select features) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.18/css/bootstrap-select.min.css">
   <style>
     * {
       box-sizing: border-box;
@@ -15,51 +18,72 @@
       margin: 0;
       padding: 0;
       font-family: 'Poppins', sans-serif;
-      background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+      /* Using a neutral background that complements our split layout */
+      background: grey;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    .container-fluid {
+      display: flex;
+      height: 100vh;
+      width: 100%;
+    }
+    .left-side {
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
+      width: 50%;
+      background: #2c3e50;
+      padding: 20px;
+    }
+    .right-side {
+      width: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #2c3e50;
+      position: relative;
+    }
+    .right-side::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: url("{{ url_for('static', filename='logo.jpeg') }}");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
     }
     .registration-container {
       background-color: #ffffff;
       border-radius: 12px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
       padding: 40px 50px;
-      max-width: 500px;
+      max-width: 400px;
       width: 100%;
-      animation: popIn 0.6s ease-out;
+      animation: fadeIn 0.6s ease-out;
+      text-align: center;
       position: relative;
-      overflow: hidden;
+      z-index: 1;
     }
-    @keyframes popIn {
-      0% { transform: scale(0.8); opacity: 0; }
-      100% { transform: scale(1); opacity: 1; }
-    }
-    .registration-container::before {
-      content: "";
-      position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(circle, rgba(52,152,219,0.15) 10%, transparent 40%);
-      transform: rotate(25deg);
-    }
-    .registration-container * {
-      position: relative;
-      z-index: 2;
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateY(-20px); }
+      100% { opacity: 1; transform: translateY(0); }
     }
     h2 {
       color: #2c3e50;
-      margin-bottom: 30px;
-      text-align: center;
       font-weight: 600;
       font-size: 2rem;
+      margin-bottom: 1rem;
     }
     .form-group label {
       font-weight: 600;
       color: #34495e;
+      text-align: left;
+      display: block;
     }
     .form-control {
       border-radius: 6px;
@@ -81,6 +105,7 @@
       border-radius: 6px;
       transition: background-color 0.3s ease;
       font-weight: 600;
+      margin-top: 10px;
     }
     .btn-primary:hover {
       background-color: #2980b9;
@@ -92,43 +117,72 @@
     .register-links a {
       color: #3498db;
       text-decoration: none;
-      transition: color 0.3s ease;
       font-weight: 600;
     }
     .register-links a:hover {
       color: #2980b9;
       text-decoration: underline;
     }
+    @media (max-width: 768px) {
+      .container-fluid {
+        flex-direction: column;
+      }
+      .left-side,
+      .right-side {
+        width: 100%;
+        height: auto;
+      }
+      .right-side {
+        min-height: 300px;
+      }
+      .right-side::before {
+        background-size: contain;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="registration-container">
-    <h2>Category Admin Registration</h2>
-    <form method="POST" action="{{ url_for('register_admin') }}">
-      <div class="form-group">
-        <label for="username">Username:</label>
-        <input type="text" class="form-control" name="username" id="username" required>
+  <div class="container-fluid">
+    <!-- Left side: Registration form -->
+    <div class="left-side">
+      <div class="registration-container">
+        <h2> Admin Registration</h2>
+        <form method="POST" action="{{ url_for('register_admin') }}">
+          <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" class="form-control" name="username" id="username" required>
+          </div>
+          <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" class="form-control" name="password" id="password" required>
+          </div>
+          <div class="form-group">
+            <label for="category">Select Existing Category:</label>
+            <select class="form-control" name="category" id="category">
+              <option value="">-- Select Category --</option>
+              {% for category in categories %}
+                <option value="{{ category.name }}">{{ category.name|capitalize }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="new_category">Or Enter New Category:</label>
+            <input type="text" class="form-control" name="new_category" id="new_category" placeholder="New Category">
+          </div>
+          <button type="submit" class="btn btn-primary">Register as Category Admin</button>
+        </form>
+        <p class="register-links mt-3">
+          Already have an account? <a href="{{ url_for('login') }}">Login</a>
+        </p>
       </div>
-      <div class="form-group">
-        <label for="password">Password:</label>
-        <input type="password" class="form-control" name="password" id="password" required>
-      </div>
-      <div class="form-group">
-        <label for="category">Select Existing Category:</label>
-        <select class="form-control" name="category" id="category">
-          <option value="">-- Select Category --</option>
-          {% for category in categories %}
-            <option value="{{ category.name }}">{{ category.name|capitalize }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="new_category">Or Enter New Category:</label>
-        <input type="text" class="form-control" name="new_category" id="new_category" placeholder="New Category">
-      </div>
-      <button type="submit" class="btn btn-primary">Register as Category Admin</button>
-    </form>
-    <p class="register-links mt-3">Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
+    </div>
+    <!-- Right side: Background image -->
+    <div class="right-side"></div>
   </div>
+  <!-- jQuery and Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+  <!-- Bootstrap Select JS (if needed) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.18/js/bootstrap-select.min.js"></script>
 </body>
 </html>

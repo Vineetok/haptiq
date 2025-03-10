@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Manage Images for {{ person_name }}</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f8f9fa;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .image-gallery img {
+      max-width: 150px;
+      margin: 10px;
+      border-radius: 6px;
+    }
+    .img-thumbnail {
+      object-fit: cover;
+    }
+    .btn-back {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Manage Images for {{ person_name }}</h2>
+    <h4>Existing Images:</h4>
+    {% if images %} 
+      <div class="image-gallery d-flex flex-wrap">
+        {% for image in images %}
+          <div class="p-2">
+            <img src="{{ url_for('get_image', file_id=image.file_id) }}" alt="{{ image.filename }}" class="img-thumbnail">
+          </div>
+        {% endfor %}
+      </div>
+    {% else %} 
+      <p>No images available for this person.</p>
+    {% endif %}
+    <hr>
+    <h4>Add New Images:</h4>
+    <form method="POST" enctype="multipart/form-data">
+      <div class="form-group">
+        <label for="images">Select Images:</label>
+        <input type="file" name="images" id="images" class="form-control" multiple required>
+      </div>
+      <button type="submit" class="btn btn-primary">Upload Images</button>
+    </form>
+    <a href="{{ url_for('category_dashboard') }}" class="btn btn-secondary btn-back">Back to Dashboard</a>
+  </div>
+</body>
+</html>
