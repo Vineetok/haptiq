@@ -29,13 +29,14 @@
       border-top-right-radius: 12px;
       border-bottom-right-radius: 12px;
       color: #fff;
-    }
-    .sidebar h4 {
-      color: #f8f9fa;
-      margin-bottom: 20px;
       text-align: center;
-      font-weight: 600;
     }
+    .sidebar-logo {
+      max-width: 100%;
+      height: auto;
+      margin-bottom: 20px;
+    }
+    /* Links in the sidebar */
     .sidebar a {
       color: #f8f9fa;
       text-decoration: none;
@@ -48,6 +49,21 @@
     .sidebar a:hover {
       background-color: #495057;
     }
+
+    /* Override default nav-link styling for vertical pills in the sidebar */
+    .nav-pills .nav-link {
+      color: #f8f9fa;
+      background: none;
+      border-radius: 6px;
+      text-align: left;
+    }
+    .nav-pills .nav-link:hover {
+      background-color: #495057;
+    }
+    .nav-pills .nav-link.active {
+      background-color: #495057 !important;
+    }
+
     /* Content area styling */
     .content {
       flex: 1;
@@ -58,20 +74,6 @@
       margin: 20px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
-    /* Nav-tabs styling */
-    .nav-tabs .nav-link {
-      color: #333;
-      font-weight: 600;
-      border: none;
-    }
-    .nav-tabs .nav-link.active {
-      background-color: #6c757d !important;
-      color: #fff !important;
-      border-radius: 6px 6px 0 0;
-    }
-    .tab-content {
-      margin-top: 20px;
-    }
     /* Table styling */
     .table thead th {
       background-color: #6c757d;
@@ -80,43 +82,83 @@
     .table-striped tbody tr:nth-of-type(odd) {
       background-color: rgba(108, 117, 125, 0.1);
     }
-    </style>
+    /* Adjust spacing for headings in content */
+    h2 {
+      margin-bottom: 20px;
+    }
+    h3 {
+      margin-top: 20px;
+    }
+  </style>
 </head>
 <body>
   <div class="wrapper">
     <!-- Sidebar -->
     <div class="sidebar">
-      <h4>Dashboard</h4>
-      <a href="{{ url_for('approve_requests') }}">Dashboard</a>
+      <!-- Logo -->
+      <img src="{{ url_for('static', filename='logo.jpeg') }}" alt="Logo" class="sidebar-logo">
+
+    
       <a href="{{ url_for('manage_category') }}">Manage Categories</a>
+
+      <!-- Vertical nav-pills for the three sections -->
+      <div class="nav flex-column nav-pills mt-4" id="sidebarTab" role="tablist" aria-orientation="vertical">
+        <a 
+          class="nav-link active" 
+          id="pending-tab" 
+          data-toggle="pill" 
+          href="#pending" 
+          role="tab" 
+          aria-controls="pending" 
+          aria-selected="true"
+        >
+          Pending Requests
+        </a>
+        <a 
+          class="nav-link" 
+          id="admins-tab" 
+          data-toggle="pill" 
+          href="#admins" 
+          role="tab" 
+          aria-controls="admins" 
+          aria-selected="false"
+        >
+          Category Admins
+        </a>
+        <a 
+          class="nav-link" 
+          id="subUsers-tab" 
+          data-toggle="pill" 
+          href="#subUsers" 
+          role="tab" 
+          aria-controls="subUsers" 
+          aria-selected="false"
+        >
+          Sub Users
+        </a>
+      </div>
+
+      <!-- Logout button -->
       <form action="{{ url_for('logout') }}" method="GET" class="mt-4">
         <button type="submit" class="btn btn-danger btn-block">Logout</button>
       </form>
     </div>
+
     <!-- Main Content -->
     <div class="content">
       <h2>Superadmin Dashboard</h2>
-      <ul class="nav nav-tabs" id="superadminTab" role="tablist">
-        <li class="nav-item">
-          <a class="nav-link active" id="pending-tab" data-toggle="tab" href="#pending" role="tab" aria-controls="pending" aria-selected="true">
-            Pending Requests
-          </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" id="admins-tab" data-toggle="tab" href="#admins" role="tab" aria-controls="admins" aria-selected="false">
-            Category Admins
-          </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" id="subUsers-tab" data-toggle="tab" href="#subUsers" role="tab" aria-controls="subUsers" aria-selected="false">
-            Sub Users
-          </a>
-        </li>
-      </ul>
-      <div class="tab-content" id="superadminTabContent">
+      
+      <!-- Tab panes (moved from nav-tabs to here, controlled by the sidebar) -->
+      <div class="tab-content" id="sidebarTabContent">
+        
         <!-- Pending Registration Requests Section -->
-        <div class="tab-pane fade show active" id="pending" role="tabpanel" aria-labelledby="pending-tab">
-          <h3 class="mt-3">Pending Registration Requests</h3>
+        <div 
+          class="tab-pane fade show active" 
+          id="pending" 
+          role="tabpanel" 
+          aria-labelledby="pending-tab"
+        >
+          <h3>Pending Registration Requests</h3>
           {% if requests %}
             <div class="table-responsive">
               <table class="table table-striped">
@@ -157,9 +199,15 @@
             <p class="text-muted">No pending requests.</p>
           {% endif %}
         </div>
+
         <!-- Category Admins Section -->
-        <div class="tab-pane fade" id="admins" role="tabpanel" aria-labelledby="admins-tab">
-          <h3 class="mt-3">Category Admins</h3>
+        <div 
+          class="tab-pane fade" 
+          id="admins" 
+          role="tabpanel" 
+          aria-labelledby="admins-tab"
+        >
+          <h3>Category Admins</h3>
           {% if category_admins %}
             <div class="table-responsive">
               <table class="table table-bordered">
@@ -190,9 +238,15 @@
             <p class="text-muted">No category admins found.</p>
           {% endif %}
         </div>
+
         <!-- Sub Users Section -->
-        <div class="tab-pane fade" id="subUsers" role="tabpanel" aria-labelledby="subUsers-tab">
-          <h3 class="mt-3">Sub Users Under Category Admins</h3>
+        <div 
+          class="tab-pane fade" 
+          id="subUsers" 
+          role="tabpanel" 
+          aria-labelledby="subUsers-tab"
+        >
+          <h3>Sub Users Under Category Admins</h3>
           {% if category_users %}
             {% for cat, sub_users in category_users.items() %}
               <h4>{{ cat }}</h4>

@@ -20,9 +20,7 @@ categories_collection = db['categories']
 reports_collection = db['reports']
 requests_collection = db['registration_requests']
 
-############################################
-# LOGIN, LOGOUT, REGISTRATION ROUTES
-############################################
+
 @app.route('/')
 def home():
     return redirect(url_for('login'))
@@ -117,9 +115,6 @@ def register_admin():
     categories = list(categories_collection.find())
     return render_template('register_admin.html', categories=categories)
 
-############################################
-# CATEGORY DASHBOARD & PERSON MANAGEMENT
-############################################
 @app.route('/category_dashboard', methods=['GET', 'POST'])
 def category_dashboard():
     # Only category admins can access this dashboard
@@ -135,7 +130,6 @@ def category_dashboard():
         if action == 'add_person':
             new_person_name = request.form.get('new_person_name', '').strip()
             if new_person_name:
-                # Optionally, check for duplicates
                 if any(p['name'] == new_person_name for p in persons):
                     flash(f"Person '{new_person_name}' already exists.")
                 else:
@@ -262,9 +256,7 @@ def remove_sub_user():
         return redirect(url_for('category_dashboard'))
     else:
         return redirect(url_for('approve_requests'))
-############################################
-# REPORT, IMAGE RETRIEVAL, PDF EXPORT, ETC.
-############################################
+
 @app.route('/report')
 def report():
     if 'username' not in session:
@@ -272,20 +264,38 @@ def report():
     user = users_collection.find_one({'username': session['username']})
     if not user:
         return redirect(url_for('login'))
+        
     selected_category = request.args.get('category', 'all')
     search_query = request.args.get('search', '')
     available_categories = session.get('categories')
     if not available_categories or available_categories == ['']:
         available_categories = [cat['name'] for cat in categories_collection.find()]
+        
     query = {}
-    if selected_category != 'all':
-        query["category"] = selected_category
+    # For normal users, restrict reports to only their enrolled categories.
+    if session.get('role') == 'user':
+        if selected_category == 'all':
+            query["category"] = {"$in": available_categories}
+        else:
+            # If a specific category is selected, only use it if the user is enrolled in it.
+            if selected_category in available_categories:
+                query["category"] = selected_category
+            else:
+                # If user selects a category not in their subscription, return no reports.
+                query["category"] = {"$in": []}
+    else:
+        # For non-normal users (like superadmin), allow the selected filter without restrictions.
+        if selected_category != 'all':
+            query["category"] = selected_category
+
     if search_query:
         query["report_name"] = {'$regex': search_query, '$options': 'i'}
+
     reports = []
     try:
         raw_reports = reports_collection.find(query).sort('generated_at', -1)
         for report in raw_reports:
+            # Process image URLs for matches, if available.
             if 'matches' in report:
                 for match in report['matches']:
                     if 'Image' in match:
@@ -294,10 +304,12 @@ def report():
             reports.append(report)
     except Exception as e:
         flash(f"Error loading reports: {str(e)}")
+
     return render_template('report.html',
                            reports=reports,
                            selected_category=selected_category,
                            available_categories=available_categories)
+
 
 @app.route('/get_image/<file_id>')
 def get_image(file_id):

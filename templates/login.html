@@ -7,139 +7,151 @@
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
   <style>
     * {
-      box-sizing: border-box;
+        box-sizing: border-box;
     }
     body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Poppins', sans-serif;
-      background: grey; /* Full page grey background */
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
+        margin: 0;
+        padding: 0;
+        font-family: 'Poppins', sans-serif;
+        background: grey; /* Full page grey background */
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
     }
     .container-fluid {
-      display: flex;
-      height: 100vh;
-      width: 100%;
+        display: flex;
+        height: 100vh;
+        width: 100%;
     }
     /* Left side: Login form */
     .left-side {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 50%;
-      background:#2c3e50;
-      padding: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 50%;
+        background: #2c3e50;
+        padding: 20px;
     }
     /* Right side: Full coverage logo */
     .right-side {
-      width: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #2c3e50;
-      position: relative;
+        width: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #2c3e50;
+        position: relative;
     }
     .right-side::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-image: url("{{ url_for('static', filename='logo.jpeg') }}");
-      background-size: cover; /* Cover the entire section */
-      background-position: center; /* Center the image */
-      background-repeat: no-repeat;
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url("{{ url_for('static', filename='logo.jpeg') }}");
+        background-size: cover; /* Cover the entire section */
+        background-position: center; /* Center the image */
+        background-repeat: no-repeat;
     }
+    /* Transparent Login Container */
     .login-container {
-      background-color: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-      padding: 40px 50px;
-      max-width: 400px;
-      width: 100%;
-      animation: fadeIn 0.6s ease-out;
-      text-align: center;
+        background-color: rgba(255, 255, 255, 0.2); /* Semi-transparent background */
+        backdrop-filter: blur(10px); /* Glassmorphism effect */
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 40px 50px;
+        max-width: 400px;
+        width: 100%;
+        animation: fadeIn 0.6s ease-out;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle border */
     }
     @keyframes fadeIn {
-      0% {
-        opacity: 0;
-        transform: translateY(-20px);
-      }
-      100% {
-        opacity: 1;
-        transform: translateY(0);
-      }
+        0% {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
     h2 {
-      color: #2c3e50;
-      font-weight: 600;
-      font-size: 2rem;
-      margin-bottom: 1rem;
+        color: #fff;
+        font-weight: 600;
+        font-size: 2rem;
+        margin-bottom: 1rem;
     }
     .form-group label {
-      font-weight: 600;
-      color: #34495e;
-      text-align: left;
-      display: block;
+        font-weight: 600;
+        color: #fff;
+        text-align: left;
+        display: block;
     }
     .form-control {
-      border-radius: 6px;
-      border: 1px solid #ced4da;
-      transition: all 0.3s ease;
-      background: #f8f9fa;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        transition: all 0.3s ease;
+        background: rgba(255, 255, 255, 0.3); /* Slight transparency */
+        color: #fff;
+    }
+    .form-control::placeholder {
+        color: rgba(255, 255, 255, 0.7);
     }
     .form-control:focus {
-      border-color: #3498db;
-      box-shadow: 0 0 8px rgba(52,152,219,0.2);
-      background: #fff;
+        border-color: #fff;
+        box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.4);
     }
     .btn-primary {
-      background-color: #3498db;
-      border: none;
-      width: 100%;
-      padding: 12px;
-      font-size: 1.1rem;
-      border-radius: 6px;
-      transition: background-color 0.3s ease;
-      font-weight: 600;
-      margin-top: 10px;
+        background-color: rgba(52, 152, 219, 0.8); /* Transparent button */
+        border: none;
+        width: 100%;
+        padding: 12px;
+        font-size: 1.1rem;
+        border-radius: 6px;
+        transition: background-color 0.3s ease;
+        font-weight: 600;
+        margin-top: 10px;
     }
     .btn-primary:hover {
-      background-color: #2980b9;
+        background-color: rgba(41, 128, 185, 0.9);
     }
     .register-links {
-      text-align: center;
-      margin-top: 20px;
+        text-align: center;
+        margin-top: 20px;
+        color: #fff;
+
     }
     .register-links a {
-      color: #3498db;
-      text-decoration: none;
-      font-weight: 600;
+        color: #ecf0f1;
+        text-decoration: none;
+        font-weight: 600;
     }
     .register-links a:hover {
-      color: #2980b9;
-      text-decoration: underline;
+        color: #3498db;
+        text-decoration: underline;
     }
     /* Responsive adjustments */
     @media (max-width: 768px) {
-      .container-fluid {
-        flex-direction: column;
-      }
-      .left-side, .right-side {
-        width: 100%;
-        height: auto;
-      }
-      .right-side {
-        min-height: 300px;
-      }
-      .right-side::before {
-        background-size: contain; /* Adjust for mobile */
-      }
+        .container-fluid {
+            flex-direction: column;
+        }
+        .left-side, .right-side {
+            width: 100%;
+            height: auto;
+        }
+        .right-side {
+            min-height: 300px;
+        }
+        .right-side::before {
+            background-size: contain; /* Adjust for mobile */
+        }
+        
+
     }
-  </style>
+</style>
+
 </head>
 <body>
   <div class="container-fluid">
