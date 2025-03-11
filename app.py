@@ -5,27 +5,44 @@ from bson import ObjectId
 from bson.errors import InvalidId
 import io
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from io import BytesIO
-from reportlab.platypus import PageBreak 
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 
-# Connect to MongoDB and select database/collections
+# MongoDB setup
 client = MongoClient('mongodb://localhost:27017/')
 db = client['face_recognition']
 fs = GridFS(db)
-
 users_collection = db['users']
 categories_collection = db['categories']
 reports_collection = db['reports']
 requests_collection = db['registration_requests']
 
+############################################
+# LOGIN, LOGOUT, REGISTRATION ROUTES
+############################################
 @app.route('/')
 def home():
     return redirect(url_for('login'))
+
+@app.route('/remove_category_admin', methods=['POST'])
+def remove_category_admin():
+    if 'username' not in session or session.get('role') != 'superadmin':
+        flash("Unauthorized access")
+        return redirect(url_for('approve_requests'))
+    category = request.form.get('category')
+    if not category:
+        flash("Invalid request")
+        return redirect(url_for('approve_requests'))
+    result = users_collection.delete_one({'role': 'categoryadmin', 'category': category})
+    if result.deleted_count > 0:
+        flash(f"Category Admin for '{category}' removed successfully")
+    else:
+        flash(f"No Category Admin found for '{category}'")
+    return redirect(url_for('approve_requests'))
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -74,48 +91,6 @@ def register():
     categories = list(categories_collection.find())
     return render_template('register.html', categories=categories)
 
-@app.route('/remove_category_admin', methods=['POST'])
-def remove_category_admin():
-    if 'username' not in session or session.get('role') != 'superadmin':
-        flash("Unauthorized access")
-        return redirect(url_for('approve_requests'))
-    category = request.form.get('category')
-    if not category:
-        flash("Invalid request")
-        return redirect(url_for('approve_requests'))
-    result = users_collection.delete_one({'role': 'categoryadmin', 'category': category})
-    if result.deleted_count > 0:
-        flash(f"Category Admin for '{category}' removed successfully")
-    else:
-        flash(f"No Category Admin found for '{category}'")
-    return redirect(url_for('approve_requests'))
-
-@app.route('/remove_sub_user', methods=['POST'])
-def remove_sub_user():
-    if 'username' not in session or session.get('role') not in ['superadmin', 'categoryadmin']:
-        flash("Unauthorized access")
-        return redirect(url_for('login'))
-    username = request.form.get('username')
-    category = request.form.get('category')
-    if not username or not category:
-        flash("Invalid request")
-        return redirect(url_for('category_dashboard'))
-    if session.get('role') == 'categoryadmin' and session.get('category') != category:
-        flash("Unauthorized removal attempt")
-        return redirect(url_for('category_dashboard'))
-    result = users_collection.update_one(
-        {'username': username},
-        {'$pull': {'categories': category}}
-    )
-    if result.modified_count > 0:
-        flash(f"User '{username}' removed from category '{category}'")
-    else:
-        flash(f"User '{username}' is not in category '{category}' or does not exist")
-    if session.get('role') == 'categoryadmin':
-        return redirect(url_for('category_dashboard'))
-    else:
-        return redirect(url_for('approve_requests'))
-
 @app.route('/register_admin', methods=['GET', 'POST'])
 def register_admin():
     if request.method == 'POST':
@@ -142,13 +117,251 @@ def register_admin():
     categories = list(categories_collection.find())
     return render_template('register_admin.html', categories=categories)
 
-@app.route('/manage_category')
-def manage_category():
-    if 'username' not in session or session.get('role') != 'superadmin':
-        flash('Only Super Admin can view this page.')
+############################################
+# CATEGORY DASHBOARD & PERSON MANAGEMENT
+############################################
+@app.route('/category_dashboard', methods=['GET', 'POST'])
+def category_dashboard():
+    # Only category admins can access this dashboard
+    if 'username' not in session or session.get('role') != 'categoryadmin':
         return redirect(url_for('login'))
-    categories = list(categories_collection.find())
-    return render_template('manage_category.html', categories=categories)
+    admin_category = session.get('category')
+    category_data = categories_collection.find_one({'name': admin_category})
+    persons = category_data.get('persons', []) if category_data else []
+    
+    # Handle adding a new person or uploading images for a person
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'add_person':
+            new_person_name = request.form.get('new_person_name', '').strip()
+            if new_person_name:
+                # Optionally, check for duplicates
+                if any(p['name'] == new_person_name for p in persons):
+                    flash(f"Person '{new_person_name}' already exists.")
+                else:
+                    categories_collection.update_one({'name': admin_category},
+                                                     {'$push': {'persons': {'name': new_person_name, 'images': []}}},
+                                                     upsert=True)
+                    flash(f"Person '{new_person_name}' added successfully.")
+            return redirect(url_for('category_dashboard'))
+        elif action == 'upload':
+            images = request.files.getlist('images')
+            person_name = request.form.get('person_name')
+            if images and person_name:
+                for image in images:
+                    if image:
+                        file_id = fs.put(image.read(), filename=image.filename)
+                        categories_collection.update_one({'name': admin_category, 'persons.name': person_name},
+                                                         {'$push': {'persons.$.images': {'file_id': file_id, 'filename': image.filename}}})
+                flash(f"Image(s) uploaded for {person_name}.")
+            else:
+                flash("Please select a person and images to upload.")
+            return redirect(url_for('category_dashboard'))
+    
+    # Dummy placeholders for pending requests and sub users (update as needed)
+    pending_requests = list(requests_collection.find({
+        '$or': [{'categories': admin_category}, {'category': admin_category}]
+    }))
+    sub_users = list(users_collection.find({
+        'role': 'user',
+        '$or': [{'categories': admin_category}, {'category': admin_category}]
+    }))
+    search_query = request.args.get('search_sub_user', '')
+    if search_query:
+        sub_users = list(users_collection.find({
+            'role': 'user',
+            '$or': [{'categories': admin_category}, {'category': admin_category}],
+            'username': {'$regex': search_query, '$options': 'i'}
+        }))
+    
+    return render_template('category_dashboard.html',
+                           category_name=admin_category,
+                           persons=persons,
+                           requests=pending_requests,
+                           sub_users=sub_users,
+                           search_query=search_query)
+
+@app.route('/manage_person_images/<person_name>', methods=['GET', 'POST'])
+def manage_person_images(person_name):
+    # Only category admins can access
+    if 'username' not in session or session.get('role') != 'categoryadmin':
+        return redirect(url_for('login'))
+    admin_category = session.get('category')
+    category_data = categories_collection.find_one({'name': admin_category})
+    persons = category_data.get('persons', []) if category_data else []
+    # Find the person by name
+    person = next((p for p in persons if p['name'] == person_name), None)
+    if not person:
+        flash(f"Person '{person_name}' not found.")
+        return redirect(url_for('category_dashboard'))
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'upload':
+            images = request.files.getlist('images')
+            if images:
+                for image in images:
+                    if image:
+                        file_id = fs.put(image.read(), filename=image.filename)
+                        categories_collection.update_one({'name': admin_category, 'persons.name': person_name},
+                                                         {'$push': {'persons.$.images': {'file_id': file_id, 'filename': image.filename}}})
+                flash("Image(s) uploaded successfully.")
+            return redirect(url_for('manage_person_images', person_name=person_name))
+    
+    # Refresh the person's data
+    category_data = categories_collection.find_one({'name': admin_category})
+    persons = category_data.get('persons', [])
+    person = next((p for p in persons if p['name'] == person_name), None)
+    images = person.get('images', [])
+    
+    return render_template('manage_person_images.html',
+                           person_name=person_name,
+                           images=images)
+
+@app.route('/delete_person_image', methods=['POST'])
+def delete_person_image():
+    if 'username' not in session or session.get('role') != 'categoryadmin':
+        return redirect(url_for('login'))
+    admin_category = session.get('category')
+    file_id_str = request.form.get('file_id')
+    person_name = request.form.get('person_name')
+    if not file_id_str or not person_name:
+        flash("Invalid request.")
+        return redirect(url_for('category_dashboard'))
+    try:
+        fs.delete(ObjectId(file_id_str))
+        categories_collection.update_one({'name': admin_category, 'persons.name': person_name},
+                                         {'$pull': {'persons.$.images': {'file_id': ObjectId(file_id_str)}}})
+        flash("Image removed successfully.")
+    except Exception as e:
+        flash(f"Error removing image: {str(e)}")
+    return redirect(url_for('manage_person_images', person_name=person_name))
+
+@app.route('/remove_sub_user', methods=['POST'])
+def remove_sub_user():
+    if 'username' not in session or session.get('role') not in ['superadmin', 'categoryadmin']:
+        flash("Unauthorized access")
+        return redirect(url_for('login'))
+    username = request.form.get('username')
+    category = request.form.get('category')
+    if not username or not category:
+        flash("Invalid request")
+        return redirect(url_for('category_dashboard'))
+    if session.get('role') == 'categoryadmin' and session.get('category') != category:
+        flash("Unauthorized removal attempt")
+        return redirect(url_for('category_dashboard'))
+    result = users_collection.update_one(
+        {'username': username},
+        {'$pull': {'categories': category}}
+    )
+    if result.modified_count > 0:
+        flash(f"User '{username}' removed from category '{category}'")
+    else:
+        flash(f"User '{username}' is not in category '{category}' or does not exist")
+    if session.get('role') == 'categoryadmin':
+        return redirect(url_for('category_dashboard'))
+    else:
+        return redirect(url_for('approve_requests'))
+############################################
+# REPORT, IMAGE RETRIEVAL, PDF EXPORT, ETC.
+############################################
+@app.route('/report')
+def report():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    user = users_collection.find_one({'username': session['username']})
+    if not user:
+        return redirect(url_for('login'))
+    selected_category = request.args.get('category', 'all')
+    search_query = request.args.get('search', '')
+    available_categories = session.get('categories')
+    if not available_categories or available_categories == ['']:
+        available_categories = [cat['name'] for cat in categories_collection.find()]
+    query = {}
+    if selected_category != 'all':
+        query["category"] = selected_category
+    if search_query:
+        query["report_name"] = {'$regex': search_query, '$options': 'i'}
+    reports = []
+    try:
+        raw_reports = reports_collection.find(query).sort('generated_at', -1)
+        for report in raw_reports:
+            if 'matches' in report:
+                for match in report['matches']:
+                    if 'Image' in match:
+                        file_id_str = str(match['Image'])
+                        match['image_url'] = url_for('get_image', file_id=file_id_str)
+            reports.append(report)
+    except Exception as e:
+        flash(f"Error loading reports: {str(e)}")
+    return render_template('report.html',
+                           reports=reports,
+                           selected_category=selected_category,
+                           available_categories=available_categories)
+
+@app.route('/get_image/<file_id>')
+def get_image(file_id):
+    try:
+        if not ObjectId.is_valid(file_id):
+            raise InvalidId("Invalid file ID format")
+        file_obj = fs.get(ObjectId(file_id))
+        return send_file(io.BytesIO(file_obj.read()), mimetype='image/jpeg', download_name=file_obj.filename)
+    except InvalidId:
+        flash("Invalid image ID format")
+        return redirect(url_for('report'))
+    except Exception as e:
+        print(f"Error retrieving image {file_id}: {str(e)}")
+        flash("Image not found")
+        return redirect(url_for('report'))
+@app.route('/export_pdf/<report_id>')
+def export_pdf(report_id):
+    try:
+        report = reports_collection.find_one({'_id': ObjectId(report_id)})
+        if not report:
+            flash('Report not found')
+            return redirect(url_for('report'))
+        
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=18, spaceAfter=12, alignment=1)
+        elements = []
+
+        elements.append(Paragraph("Face Recognition Report", title_style))
+        details = [
+            ['Category:', report['category']],
+            ['Date:', report['generated_at'].strftime('%Y-%m-%d %H:%M:%S')],
+            ['Confidence:', report['matches'][0]['Confidence']]
+        ]
+        table = Table(details, colWidths=[100, 400])
+        table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 12),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+        ]))
+        elements.append(table)
+        elements.append(Spacer(1, 24))
+
+        if 'matches' in report and report['matches'] and 'Image' in report['matches'][0]:
+            try:
+                image_file = fs.get(report['matches'][0]['Image'])
+                img = Image(io.BytesIO(image_file.read()), width=400, height=300)
+                elements.append(Paragraph("Detection Snapshot:", styles['Heading2']))
+                elements.append(img)
+            except Exception as e:
+                print(f"Error loading image: {str(e)}")
+
+        doc.build(elements)
+        buffer.seek(0)
+        timestamp = report['generated_at'].strftime('%Y%m%d_%H%M%S')
+        return send_file(buffer, as_attachment=True, download_name=f"Report_{report['category']}_{timestamp}.pdf", mimetype='application/pdf')
+
+    except Exception as e:
+        print(f"PDF generation error: {str(e)}")
+        flash('Error generating PDF')
+        return redirect(url_for('report'))
 
 @app.route('/add_category', methods=['POST'])
 def add_category():
@@ -162,7 +375,13 @@ def add_category():
     else:
         flash('Category already exists.')
     return redirect(url_for('manage_category'))
-
+@app.route('/manage_category')
+def manage_category():
+    if 'username' not in session or session.get('role') != 'superadmin':
+        flash('Only Super Admin can view this page.')
+        return redirect(url_for('login'))
+    categories = list(categories_collection.find())
+    return render_template('manage_category.html', categories=categories)
 @app.route('/delete_category', methods=['POST'])
 def delete_category():
     if 'username' not in session or session.get('role') != 'superadmin':
@@ -176,7 +395,6 @@ def delete_category():
     else:
         flash('Category not found.')
     return redirect(url_for('manage_category'))
-
 @app.route('/approve_requests')
 def approve_requests():
     if 'username' not in session or session.get('role') != 'superadmin':
@@ -269,7 +487,6 @@ def approve(request_id):
             requests_collection.delete_one({'_id': ObjectId(request_id)})
             flash("User approved successfully")
             return redirect(url_for('category_dashboard'))
-
 @app.route('/reject/<request_id>', methods=['POST'])
 def reject(request_id):
     if 'username' not in session:
@@ -294,222 +511,11 @@ def reject(request_id):
     else:
         return redirect(url_for('approve_requests'))
 
-@app.route('/category_dashboard', methods=['GET', 'POST'])
-def category_dashboard():
-    if 'username' not in session or session.get('role') != 'categoryadmin':
-        return redirect(url_for('login'))
-    admin_category = session.get('category')
-    
-    if request.method == 'POST':
-        action = request.form.get('action')
-        if action == 'upload':
-            images = request.files.getlist('images')
-            if images:
-                for image in images:
-                    if image:
-                        file_id = fs.put(image.read(), filename=image.filename)
-                        categories_collection.update_one(
-                            {'name': admin_category},
-                            {'$push': {'images': {'file_id': file_id, 'filename': image.filename}}},
-                            upsert=True
-                        )
-                flash('Image(s) uploaded successfully')
-            else:
-                flash('No image selected for upload')
-        elif action == 'remove':
-            file_id_str = request.form.get('file_id')
-            if file_id_str:
-                try:
-                    fs.delete(ObjectId(file_id_str))
-                    categories_collection.update_one(
-                        {'name': admin_category},
-                        {'$pull': {'images': {'file_id': ObjectId(file_id_str)}}}
-                    )
-                    flash('Image removed successfully')
-                except Exception as e:
-                    flash(f'Error removing image: {str(e)}')
-            else:
-                flash('No image selected for removal')
-        return redirect(url_for('category_dashboard'))
-    
-    category_data = categories_collection.find_one({'name': admin_category})
-    images = category_data.get('images', []) if category_data else []
-    pending_requests = list(requests_collection.find({
-        '$or': [
-            {'categories': admin_category},
-            {'category': admin_category}
-        ]
-    }))
-    sub_users = list(users_collection.find({
-        'role': 'user',
-        '$or': [
-            {'categories': admin_category},
-            {'category': admin_category}
-        ]
-    }))
-    search_query = request.args.get('search_sub_user', '')
-    if search_query:
-        sub_users = list(users_collection.find({
-            'role': 'user',
-            '$or': [
-                {'categories': admin_category},
-                {'category': admin_category}
-            ],
-            'username': {'$regex': search_query, '$options': 'i'}
-        }))
-    return render_template('category_dashboard.html',
-                           images=images,
-                           requests=pending_requests,
-                           sub_users=sub_users)
-
-
-
-@app.route('/report')
-def report():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-
-    user = users_collection.find_one({'username': session['username']})
-    if not user:
-        return redirect(url_for('login'))
-
-    # Get category and search query from GET parameters.
-    selected_category = request.args.get('category', 'all')
-    search_query = request.args.get('search', '')
-
-    # Determine available categories.
-    available_categories = session.get('categories')
-    if not available_categories or available_categories == ['']:
-        available_categories = [cat['name'] for cat in categories_collection.find()]
-
-    # Build query based on category and search text.
-    query = {}
-    if selected_category != 'all':
-        query["category"] = selected_category
-    if search_query:
-        query["report_name"] = {'$regex': search_query, '$options': 'i'}
-
-    reports = []
-    try:
-        raw_reports = reports_collection.find(query).sort('generated_at', -1)
-        for report in raw_reports:
-            if 'matches' in report:
-                for match in report['matches']:
-                    if 'Image' in match:
-                        file_id_str = str(match['Image'])
-                        match['image_url'] = url_for('get_image', file_id=file_id_str)
-            reports.append(report)
-    except Exception as e:
-        flash(f"Error loading reports: {str(e)}")
-
-    return render_template('report.html',
-                           reports=reports,
-                           selected_category=selected_category,
-                           available_categories=available_categories)
-
-
-@app.route('/get_image/<file_id>')
-def get_image(file_id):
-    try:
-        # Validate ObjectId format
-        if not ObjectId.is_valid(file_id):
-            raise InvalidId("Invalid file ID format")
-
-        file_obj = fs.get(ObjectId(file_id))
-        return send_file(
-            io.BytesIO(file_obj.read()),
-            mimetype='image/jpeg',
-            download_name=file_obj.filename
-        )
-
-    except InvalidId:
-        flash("Invalid image ID format")
-        return redirect(url_for('report'))
-    except Exception as e:
-        print(f"Error retrieving image {file_id}: {str(e)}")  # Log the error
-        flash("Image not found")
-        return redirect(url_for('report'))
-
-
-@app.route('/export_pdf/<report_id>')
-def export_pdf(report_id):
-    try:
-        # Get report data
-        report = reports_collection.find_one({'_id': ObjectId(report_id)})
-        if not report:
-            flash('Report not found')
-            return redirect(url_for('report'))
-
-        # Create PDF buffer
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter)
-
-        # Create styles
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'Title',
-            parent=styles['Heading1'],
-            fontSize=18,
-            spaceAfter=12,
-            alignment=1  # Center aligned
-        )
-
-        elements = []
-
-        # Add title
-        elements.append(Paragraph("Face Recognition Report", title_style))
-
-        # Add report details
-        details = [
-            ['Category:', report['category']],
-            ['Date:', report['generated_at'].strftime('%Y-%m-%d %H:%M:%S')],
-            ['Confidence:', report['matches'][0]['Confidence']]
-        ]
-
-        # Create table
-        table = Table(details, colWidths=[100, 400])
-        table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 12),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-        ]))
-
-        elements.append(table)
-        elements.append(Spacer(1, 24))
-
-        # Add image if available
-        if 'matches' in report and report['matches'] and 'Image' in report['matches'][0]:
-            try:
-                image_file = fs.get(report['matches'][0]['Image'])
-                img = Image(BytesIO(image_file.read()), width=400, height=300)
-                elements.append(Paragraph("Detection Snapshot:", styles['Heading2']))
-                elements.append(img)
-            except Exception as e:
-                print(f"Error loading image: {str(e)}")
-
-        # Build PDF
-        doc.build(elements)
-
-        # Prepare response
-        buffer.seek(0)
-        timestamp = report['generated_at'].strftime('%Y%m%d_%H%M%S')
-        return send_file(
-            buffer,
-            as_attachment=True,
-            download_name=f"Report_{report['category']}_{timestamp}.pdf",
-            mimetype='application/pdf'
-        )
-
-    except Exception as e:
-        print(f"PDF generation error: {str(e)}")
-        flash('Error generating PDF')
-        return redirect(url_for('report'))
 @app.route('/search_sub_users', methods=['GET'])
 def search_sub_users():
     if 'username' not in session or session.get('role') != 'categoryadmin':
         return '', 403
+    
     admin_category = session.get('category')
     search_query = request.args.get('search_sub_user', '')
     sub_users = list(users_collection.find({
@@ -520,49 +526,37 @@ def search_sub_users():
         ],
         'username': {'$regex': search_query, '$options': 'i'}
     }))
+    
     return render_template('sub_users_table.html', sub_users=sub_users)
+
 
 @app.route('/export_multi_pdf_combined', methods=['POST'])
 def export_multi_pdf_combined():
     try:
-        # Check which download type is requested: "selected" or "all"
         download_type = request.form.get('downloadType', 'selected')
+        
         if download_type == 'all':
-            # Retrieve all reports (sorted by date descending)
             raw_reports = reports_collection.find().sort('generated_at', -1)
-            # Build report_ids list from all reports
             report_ids = [str(report['_id']) for report in raw_reports]
         else:
-            # Get the list of selected report IDs from the form
             report_ids = request.form.getlist('report_ids')
         
         if not report_ids:
             flash("No reports selected for download.")
             return redirect(url_for('report'))
-        
-        # Create a PDF document in memory
-        pdf_buffer = BytesIO()
+
+        pdf_buffer = io.BytesIO()
         doc = SimpleDocTemplate(pdf_buffer, pagesize=letter)
         styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'Title',
-            parent=styles['Heading1'],
-            fontSize=18,
-            spaceAfter=12,
-            alignment=1  # center aligned
-        )
+        title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=18, spaceAfter=12, alignment=1)
         elements = []
-        
-        # Loop through each report and add its content to the PDF
+
         for idx, report_id in enumerate(report_ids):
             report = reports_collection.find_one({'_id': ObjectId(report_id)})
             if not report:
-                continue  # Skip if report not found
-
-            # Report Title
-            elements.append(Paragraph("Face Recognition Report", title_style))
+                continue
             
-            # Report Details
+            elements.append(Paragraph(f"Face Recognition Report {idx + 1}", title_style))
             details = [
                 ['Category:', report['category']],
                 ['Date:', report['generated_at'].strftime('%Y-%m-%d %H:%M:%S')],
@@ -578,36 +572,25 @@ def export_multi_pdf_combined():
             ]))
             elements.append(table)
             elements.append(Spacer(1, 24))
-            
-            # Add Detection Snapshot if available
+
             if 'matches' in report and report['matches'] and 'Image' in report['matches'][0]:
                 try:
                     image_file = fs.get(report['matches'][0]['Image'])
-                    img = Image(BytesIO(image_file.read()), width=400, height=300)
+                    img = Image(io.BytesIO(image_file.read()), width=400, height=300)
                     elements.append(Paragraph("Detection Snapshot:", styles['Heading2']))
                     elements.append(img)
                 except Exception as e:
-                    print(f"Error loading image: {e}")
+                    print(f"Error loading image: {str(e)}")
             
-            # Add a page break if there are more reports
-            if idx < len(report_ids) - 1:
-                elements.append(PageBreak())
-        
-        # Build the combined PDF
+            elements.append(PageBreak())
+
         doc.build(elements)
         pdf_buffer.seek(0)
-        
-        return send_file(
-            pdf_buffer,
-            as_attachment=True,
-            download_name="Combined_Reports.pdf",
-            mimetype="application/pdf"
-        )
+        return send_file(pdf_buffer, as_attachment=True, download_name="Combined_Reports.pdf", mimetype='application/pdf')
+
     except Exception as e:
-        print(f"Error generating combined PDF: {e}")
-        flash("Error generating combined PDF")
+        print(f"PDF generation error: {str(e)}")
+        flash('Error generating PDF')
         return redirect(url_for('report'))
-
-
 if __name__ == '__main__':
     app.run(debug=True)

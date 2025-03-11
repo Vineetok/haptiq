@@ -2,61 +2,50 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Manage Images for {{ person_name }}</title>
+  <title>Manage {{ session['category'] }} Person: {{ person_name }}</title>
+  <!-- Bootstrap CSS -->
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap">
   <style>
-    body {
-      font-family: 'Poppins', sans-serif;
-      background: #f8f9fa;
-      padding: 20px;
-    }
-    .container {
-      max-width: 800px;
-      margin: auto;
-      background: #fff;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    .image-gallery img {
-      max-width: 150px;
-      margin: 10px;
-      border-radius: 6px;
-    }
     .img-thumbnail {
+      width: 150px;
+      height: 150px;
       object-fit: cover;
-    }
-    .btn-back {
-      margin-top: 20px;
+      margin: 10px;
     }
   </style>
 </head>
-<body>
+<body class="p-4">
   <div class="container">
-    <h2>Manage Images for {{ person_name }}</h2>
-    <h4>Existing Images:</h4>
-    {% if images %} 
-      <div class="image-gallery d-flex flex-wrap">
-        {% for image in images %}
-          <div class="p-2">
-            <img src="{{ url_for('get_image', file_id=image.file_id) }}" alt="{{ image.filename }}" class="img-thumbnail">
+    <h2>Manage {{ session['category'] }} Person: {{ person_name }}</h2>
+    <hr>
+    <!-- Form to upload new images for this person -->
+    <form method="POST" enctype="multipart/form-data">
+      <div class="form-group mb-3">
+        <label>Upload New Images:</label>
+        <input type="file" class="form-control" name="images" multiple required>
+      </div>
+      <button type="submit" name="action" value="upload" class="btn btn-primary">Upload</button>
+    </form>
+    <hr>
+    <h4>Existing Images</h4>
+    {% if images %}
+      <div class="d-flex flex-wrap">
+        {% for img in images %}
+          <div class="text-center">
+            <img src="{{ url_for('get_image', file_id=img.file_id) }}" alt="{{ img.filename }}" class="img-thumbnail">
+            <form action="{{ url_for('delete_person_image') }}" method="POST" class="mt-2">
+              <input type="hidden" name="file_id" value="{{ img.file_id }}">
+              <input type="hidden" name="person_name" value="{{ person_name }}">
+              <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+            </form>
           </div>
         {% endfor %}
       </div>
-    {% else %} 
-      <p>No images available for this person.</p>
+    {% else %}
+      <p class="text-muted">No images uploaded for {{ person_name }} yet.</p>
     {% endif %}
     <hr>
-    <h4>Add New Images:</h4>
-    <form method="POST" enctype="multipart/form-data">
-      <div class="form-group">
-        <label for="images">Select Images:</label>
-        <input type="file" name="images" id="images" class="form-control" multiple required>
-      </div>
-      <button type="submit" class="btn btn-primary">Upload Images</button>
-    </form>
-    <a href="{{ url_for('category_dashboard') }}" class="btn btn-secondary btn-back">Back to Dashboard</a>
+    <a href="{{ url_for('category_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
   </div>
 </body>
 </html>

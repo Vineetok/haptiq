@@ -89,7 +89,8 @@
       <a onclick="showSection('add')">Add Category</a>
       <a onclick="showSection('remove')">Existing Categories</a>
       <!-- Back to Dashboard Button in Sidebar using history.back() -->
-      <a href="javascript:history.back()" class="btn btn-secondary btn-block back-btn">Back to Dashboard</a>
+      <a href="{{ url_for('approve_requests') }}" class="btn btn-secondary btn-block back-btn">Back to Dashboard</a>
+
     </div>
     <!-- Main Content -->
     <div class="content">
